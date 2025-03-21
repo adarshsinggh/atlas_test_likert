@@ -6,14 +6,111 @@ import {
   ScrollView,
   Pressable,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  useSharedValue,
+  withSequence,
+  withDelay,
+} from 'react-native-reanimated';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useSurveyStore } from '@/store/surveyStore';
-import { Riskometer } from '@/components/Riskometer';
 import { FileDown } from 'lucide-react-native';
+import Svg, { Circle, Path, Text as SvgText, G } from 'react-native-svg';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const RADIUS = 120;
+const STROKE_WIDTH = 20;
+const CIRCLE_LENGTH = 2 * Math.PI * RADIUS;
+
+const CircularGauge = ({ value, maxValue, label, color, delay = 0 }) => {
+  const progress = useSharedValue(0);
+  const scale = useSharedValue(0.8);
+
+  React.useEffect(() => {
+    progress.value = withDelay(
+      delay,
+      withSpring(value / maxValue, { damping: 15 })
+    );
+    scale.value = withDelay(
+      delay,
+      withSequence(
+        withSpring(1.1),
+        withTiming(1, { duration: 200 })
+      )
+    );
+  }, [value]);
+
+  const animatedProps = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const strokeDashoffset = useAnimatedStyle(() => ({
+    strokeDashoffset: withSpring(
+      CIRCLE_LENGTH * (1 - progress.value),
+      { damping: 15 }
+    ),
+  }));
+
+  const percentage = (value / maxValue) * 100;
+
+  return (
+    <Animated.View style={[styles.gaugeContainer, animatedProps]}>
+      <Svg width={RADIUS * 2 + STROKE_WIDTH} height={RADIUS * 2 + STROKE_WIDTH}>
+        <G transform={`translate(${STROKE_WIDTH / 2 + RADIUS}, ${STROKE_WIDTH / 2 + RADIUS})`}>
+          {/* Background circle */}
+          <Circle
+            r={RADIUS}
+            fill="none"
+            stroke="#e2e8f0"
+            strokeWidth={STROKE_WIDTH}
+          />
+          
+          {/* Progress circle */}
+          <AnimatedCircle
+            r={RADIUS}
+            fill="none"
+            stroke={color}
+            strokeWidth={STROKE_WIDTH}
+            strokeDasharray={CIRCLE_LENGTH}
+            strokeLinecap="round"
+            style={strokeDashoffset}
+            transform="rotate(-90)"
+          />
+
+          {/* Center text */}
+          <SvgText
+            x="0"
+            y="0"
+            fontSize="36"
+            fontWeight="bold"
+            fill="#1e293b"
+            textAnchor="middle"
+            alignmentBaseline="middle">
+            {percentage.toFixed(0)}%
+          </SvgText>
+
+          {/* Label */}
+          <SvgText
+            x="0"
+            y="30"
+            fontSize="14"
+            fill="#64748b"
+            textAnchor="middle"
+            alignmentBaseline="middle">
+            {label}
+          </SvgText>
+        </G>
+      </Svg>
+    </Animated.View>
+  );
+};
 
 export default function ResultsScreen() {
   const { questions } = useSurveyStore();
@@ -31,6 +128,13 @@ export default function ResultsScreen() {
     if (answered.length === 0) return 0;
     const sum = answered.reduce((acc, q) => acc + (q.answer || 0), 0);
     return sum / answered.length;
+  };
+
+  const sectionColors = {
+    'Cognitive & Thought Process': '#6366f1',
+    'Emotional & Decision-Making Style': '#ec4899',
+    'Organization & Lifestyle': '#14b8a6',
+    'Social & Energy Levels': '#f59e0b',
   };
 
   const handleDownloadPDF = async () => {
@@ -111,28 +215,30 @@ export default function ResultsScreen() {
           </View>
         </View>
 
-        {Object.entries(sections).map(([section, sectionQuestions], index) => {
-          const average = calculateSectionAverage(sectionQuestions);
-          return (
-            <Animated.View
-              key={section}
-              entering={FadeInDown.delay(300 + index * 100)}
-              style={styles.section}>
-              <Text style={styles.sectionTitle}>{section}</Text>
-              <Riskometer value={average} label="Section Score" />
+        <View style={styles.gaugesContainer}>
+          {Object.entries(sections).map(([section, sectionQuestions], index) => (
+            <View key={section} style={styles.gaugeSection}>
+              <CircularGauge
+                value={calculateSectionAverage(sectionQuestions)}
+                maxValue={7}
+                label={section}
+                color={sectionColors[section]}
+                delay={index * 300}
+              />
+              
               <View style={styles.questionsContainer}>
                 {sectionQuestions.map((question) => (
-                  <View key={question.id} style={styles.questionContainer}>
+                  <View key={question.id} style={styles.questionItem}>
                     <Text style={styles.questionText}>{question.text}</Text>
-                    <Text style={styles.answerText}>
-                      Response: {question.answer || 'Not answered'}
+                    <Text style={[styles.answerText, { color: sectionColors[section] }]}>
+                      {question.answer || 'Not answered'}
                     </Text>
                   </View>
                 ))}
               </View>
-            </Animated.View>
-          );
-        })}
+            </View>
+          ))}
+        </View>
 
         <Pressable style={styles.downloadButton} onPress={handleDownloadPDF}>
           <FileDown color="#fff" size={20} />
@@ -183,11 +289,13 @@ const styles = StyleSheet.create({
     color: '#e2e8f0',
     lineHeight: 24,
   },
-  section: {
+  gaugesContainer: {
+    padding: 16,
+  },
+  gaugeSection: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
-    marginHorizontal: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
@@ -198,35 +306,30 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#1e293b',
-    marginBottom: 16,
+  gaugeContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
   questionsContainer: {
-    marginTop: 24,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
-    paddingTop: 24,
+    paddingTop: 16,
   },
-  questionContainer: {
+  questionItem: {
     backgroundColor: '#f8fafc',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
   },
   questionText: {
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
     color: '#475569',
-    marginBottom: 8,
-    lineHeight: 20,
+    marginBottom: 4,
   },
   answerText: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    color: '#6366f1',
   },
   downloadButton: {
     backgroundColor: '#6366f1',

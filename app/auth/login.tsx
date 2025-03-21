@@ -6,25 +6,32 @@ import {
   TextInput,
   Pressable,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 
 export default function LoginScreen() {
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
-  const login = useAuthStore((state) => state.login);
+  const [error, setError] = useState('');
+  const { login, verifyOtp } = useAuthStore();
 
   const handleSendOtp = () => {
-    if (mobile.length >= 10) {
+    if (mobile.length === 10) {
+      login(mobile);
       setStep('otp');
+      setError('');
+    } else {
+      setError('Please enter a valid 10-digit mobile number');
     }
   };
 
-  const handleLogin = () => {
-    if (otp.length >= 4) {
-      login(mobile);
-      router.replace('/(tabs)');
+  const handleVerifyOtp = () => {
+    if (verifyOtp(otp)) {
+      setError('');
+      router.replace('/auth/profile');
+    } else {
+      setError('Invalid OTP. Please try 000000');
     }
   };
 
@@ -33,8 +40,12 @@ export default function LoginScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>
-          Sign in to continue to your account
+          {step === 'mobile' 
+            ? 'Enter your mobile number to continue' 
+            : 'Enter the OTP sent to your mobile'}
         </Text>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         {step === 'mobile' ? (
           <>
@@ -64,25 +75,30 @@ export default function LoginScreen() {
               keyboardType="number-pad"
               value={otp}
               onChangeText={setOtp}
-              maxLength={4}
+              maxLength={6}
             />
             <Pressable
               style={[
                 styles.button,
-                otp.length < 4 && styles.buttonDisabled,
+                otp.length < 6 && styles.buttonDisabled,
               ]}
-              disabled={otp.length < 4}
-              onPress={handleLogin}>
-              <Text style={styles.buttonText}>Login</Text>
+              disabled={otp.length < 6}
+              onPress={handleVerifyOtp}>
+              <Text style={styles.buttonText}>Verify OTP</Text>
             </Pressable>
           </>
         )}
 
-        <Link href="/auth/signup" style={styles.link}>
-          <Text style={styles.linkText}>
-            Don't have an account? Sign up
-          </Text>
-        </Link>
+        {step === 'otp' && (
+          <Pressable
+            onPress={() => {
+              setStep('mobile');
+              setError('');
+            }}
+            style={styles.backButton}>
+            <Text style={styles.backButtonText}>Change Mobile Number</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -145,10 +161,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
   },
-  link: {
-    marginTop: 16,
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  linkText: {
+  backButton: {
+    marginTop: 16,
+    padding: 8,
+  },
+  backButtonText: {
     color: '#6366f1',
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
