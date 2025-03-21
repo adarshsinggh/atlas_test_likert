@@ -210,7 +210,7 @@ export default function ResultsScreen() {
               Your Results
             </Animated.Text>
             <Text style={styles.subtitle}>
-              Here's what we learned about your personality
+              Here's what we learned about your financial goals
             </Text>
           </View>
         </View>

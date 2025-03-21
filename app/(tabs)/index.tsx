@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { LikertScale } from '@/components/LikertScale';
+import { AppBar } from '@/components/AppBar';
 import { useSurveyStore } from '@/store/surveyStore';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -27,6 +28,7 @@ export default function SurveyScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <AppBar />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
@@ -43,7 +45,7 @@ export default function SurveyScreen() {
               Personality Assessment
             </Animated.Text>
             <Text style={styles.subtitle}>
-              Discover insights about your personality traits and tendencies
+            Financial Satisfaction Survey in women Entrepreneurs
             </Text>
           </View>
         </View>

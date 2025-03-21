@@ -5,6 +5,7 @@ import Animated, {
   withSpring,
   withSequence,
   withTiming,
+  FadeIn,
 } from 'react-native-reanimated';
 import { Check } from 'lucide-react-native';
 
@@ -20,6 +21,16 @@ export function LikertScale({ value, onChange, text }: LikertScaleProps) {
   const { width } = useWindowDimensions();
   const isSmallScreen = width < 500;
 
+  const labels = [
+    'Strongly Agree',
+    'Agree',
+    'Somewhat Agree',
+    'Neutral',
+    'Somewhat Disagree',
+    'Disagree',
+    'Strongly Disagree',
+  ];
+
   return (
     <View style={styles.container}>
       <Text style={styles.question}>{text}</Text>
@@ -32,13 +43,10 @@ export function LikertScale({ value, onChange, text }: LikertScaleProps) {
               isSelected={value === optionValue}
               onSelect={() => onChange(optionValue)}
               isSmallScreen={isSmallScreen}
+              label={labels[optionValue - 1]}
             />
           ))}
         </View>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={[styles.label, styles.labelLeft]}>AGREE</Text>
-        <Text style={[styles.label, styles.labelRight]}>DISAGREE</Text>
       </View>
       <View style={styles.separator} />
     </View>
@@ -50,11 +58,13 @@ function Option({
   isSelected,
   onSelect,
   isSmallScreen,
+  label,
 }: {
   value: number;
   isSelected: boolean;
   onSelect: () => void;
   isSmallScreen: boolean;
+  label: string;
 }) {
   const animatedStyle = useAnimatedStyle(() => {
     if (isSelected) {
@@ -77,25 +87,39 @@ function Option({
   });
 
   return (
-    <AnimatedPressable
-      onPress={onSelect}
-      style={[
-        styles.option,
-        isSmallScreen && styles.optionSmall,
-        {
-          borderColor: '#e2e8f0',
-          borderWidth: isSelected ? 0 : 1,
-        },
-        animatedStyle,
-      ]}>
+    <View style={styles.optionContainer}>
+      <AnimatedPressable
+        onPress={onSelect}
+        style={[
+          styles.option,
+          isSmallScreen && styles.optionSmall,
+          {
+            borderColor: '#e2e8f0',
+            borderWidth: isSelected ? 0 : 1,
+          },
+          animatedStyle,
+        ]}>
+        {isSelected ? (
+          <Check
+            size={isSmallScreen ? 16 : 20}
+            color="#fff"
+            strokeWidth={2.5}
+          />
+        ) : (
+          <Text style={styles.optionNumber}>{value}</Text>
+        )}
+      </AnimatedPressable>
       {isSelected && (
-        <Check
-          size={isSmallScreen ? 16 : 20}
-          color="#fff"
-          strokeWidth={2.5}
-        />
+        <Animated.Text
+          entering={FadeIn}
+          style={[
+            styles.optionLabel,
+            isSmallScreen && styles.optionLabelSmall,
+          ]}>
+          {label}
+        </Animated.Text>
       )}
-    </AnimatedPressable>
+    </View>
   );
 }
 
@@ -130,6 +154,10 @@ const styles = StyleSheet.create({
   scaleSmall: {
     gap: 12,
   },
+  optionContainer: {
+    alignItems: 'center',
+    gap: 8,
+  },
   option: {
     width: 40,
     height: 40,
@@ -151,28 +179,28 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
   },
-  labelContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 32,
-    marginTop: 16,
-  },
-  label: {
-    fontSize: 12,
+  optionNumber: {
+    fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 1,
     color: '#64748b',
   },
-  labelLeft: {
-    textAlign: 'left',
+  optionLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#6366f1',
+    textAlign: 'center',
+    position: 'absolute',
+    bottom: -24,
+    width: 80,
   },
-  labelRight: {
-    textAlign: 'right',
+  optionLabelSmall: {
+    width: 60,
+    fontSize: 10,
   },
   separator: {
     height: 1,
     backgroundColor: '#e2e8f0',
-    marginTop: 32,
+    marginTop: 48,
     marginHorizontal: 24,
   },
 });
